@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fortech — Subdomain Hosting</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="nav">
+  <div class="container nav-inner">
+    <a href="/" class="brand">Fortech</a>
+    <div class="nav-links" id="nav-links">
+      <a href="/login">Masuk</a>
+      <a href="/register" class="btn btn-primary btn-sm">Mulai Gratis</a>
+    </div>
+  </div>
+</nav>
+<main style="padding:100px 0 80px;text-align:center;position:relative">
+  <div class="container">
+    <h1 style="font-size:clamp(32px,5vw,60px);font-weight:800;letter-spacing:-.04em;line-height:1.05;margin-bottom:20px">
+      <span style="background:linear-gradient(180deg,#fff 0%,#666 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">Deploy situsmu<br>ke subdomain dalam hitungan detik</span>
+    </h1>
+    <p style="font-size:clamp(16px,2vw,20px);color:var(--text-dim);max-width:640px;margin:0 auto 32px">
+      Hosting statis yang simpel. Upload file, dapatkan URL <code style="font-family:var(--mono);color:var(--text)">namamu.fastdev.my.id</code>.
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a href="/register" class="btn btn-primary">Mulai Gratis</a>
+      <a href="/login" class="btn btn-secondary">Masuk</a>
+    </div>
+  </div>
+</main>
+<script src="/js/api.js"></script>
+<script>
+(async () => {
+  try {
+    const me = await API.get('/api/auth/me');
+    if (me && me.user) {
+      document.getElementById('nav-links').innerHTML =
+        '<a href="/dashboard" class="btn btn-primary btn-sm">Dashboard</a>';
+    }
+  } catch (_) {}
+})();
+</script>
+</body>
+</html>
