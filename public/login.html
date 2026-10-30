@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masuk — Fortech</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="nav">
+  <div class="container nav-inner">
+    <a href="/" class="brand">Fortech</a>
+    <div class="nav-links"><a href="/register" class="btn btn-secondary btn-sm">Daftar</a></div>
+  </div>
+</nav>
+<div class="auth-wrap">
+  <div class="auth-card card">
+    <div class="auth-head"><h1>Masuk</h1><p>Selamat datang kembali.</p></div>
+    <div class="alert alert-error" id="err"></div>
+    <form id="form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input class="input" type="email" id="email" placeholder="kamu@email.com" required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input class="input" type="password" id="password" placeholder="••••••••" required>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit" id="submit">Masuk</button>
+    </form>
+    <div class="auth-foot">Belum punya akun? <a href="/register">Daftar</a></div>
+  </div>
+</div>
+<div class="toast-wrap" id="toasts"></div>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script>initLoginPage();</script>
+</body>
+</html>
