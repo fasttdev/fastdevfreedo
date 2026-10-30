@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Fortech</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="nav">
+  <div class="container nav-inner">
+    <a href="/" class="brand">Fortech</a>
+    <div class="nav-links">
+      <span id="username-display" style="font-size:13px;color:var(--text-dim);padding:0 6px"></span>
+      <button class="btn btn-ghost btn-sm" id="logout-btn">Keluar</button>
+    </div>
+  </div>
+</nav>
+<div class="dash">
+  <div class="container">
+    <div class="dash-head">
+      <div>
+        <h1>Situs Kamu</h1>
+        <p>Kelola semua proyek dan deployment di satu tempat.</p>
+      </div>
+      <button class="btn btn-primary" id="new-site-btn">+ Situs Baru</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="label">Total Situs</div><div class="value" id="stat-sites">—</div></div>
+      <div class="stat"><div class="label">Paket</div><div class="value" id="stat-plan">—</div></div>
+      <div class="stat"><div class="label">Sisa Slot</div><div class="value" id="stat-slots">—</div></div>
+    </div>
+    <div id="site-list-container">
+      <div class="empty"><h3>Memuat…</h3></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-create">
+  <div class="modal">
+    <h2>Situs Baru</h2>
+    <p class="sub">Pilih subdomain dan nama proyek. Subdomain tidak bisa diubah setelah dibuat.</p>
+    <div class="alert alert-error" id="create-err"></div>
+    <form id="create-form">
+      <div class="field">
+        <label for="create-name">Nama Proyek</label>
+        <input class="input" type="text" id="create-name" placeholder="Portfolio Saya" required maxlength="60">
+      </div>
+      <div class="field">
+        <label for="create-sub">Subdomain</label>
+        <div class="input-group">
+          <input class="input" type="text" id="create-sub" placeholder="portfolio" required maxlength="63">
+          <div class="input-suffix">.fastdev.my.id</div>
+        </div>
+        <span class="hint">Huruf kecil, angka, tanda hubung. Min 3 karakter.</span>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="create-cancel">Batal</button>
+        <button type="submit" class="btn btn-primary" id="create-submit">Buat</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-deploy">
+  <div class="modal">
+    <h2>Deploy</h2>
+    <p class="sub" id="deploy-sub">Upload file ke situs.</p>
+    <div class="alert alert-error" id="deploy-err"></div>
+    <form id="deploy-form">
+      <input type="hidden" id="deploy-site-id">
+      <div class="dropzone" id="dropzone">
+        <div class="icon">📁</div>
+        <p>Klik atau seret file ke sini</p>
+        <p style="font-size:11px;color:var(--text-faint);margin-top:6px">Wajib ada <code>index.html</code> · Maks ~3MB total</p>
+      </div>
+      <input type="file" id="file-input" multiple hidden>
+      <div class="file-list" id="file-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="deploy-cancel">Batal</button>
+        <button type="submit" class="btn btn-primary" id="deploy-submit">Deploy</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+<script src="/js/api.js"></script>
+<script src="/js/dashboard.js"></script>
+<script>initDashboard();</script>
+</body>
+</html>
