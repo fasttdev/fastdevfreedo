@@ -56,7 +56,6 @@ function bindEvents() {
   });
   document.getElementById('deploy-form').addEventListener('submit', onDeploy);
 
-  // Tab switching
   document.querySelectorAll('.tab').forEach((tab) => {
     tab.addEventListener('click', () => {
       const target = tab.getAttribute('data-tab');
@@ -68,7 +67,6 @@ function bindEvents() {
     });
   });
 
-  // GitHub import
   document.getElementById('github-form').addEventListener('submit', onGitHubImport);
   document.getElementById('github-cancel').addEventListener('click', () => closeModal('modal-deploy'));
 
@@ -112,6 +110,11 @@ function renderStats() {
   document.getElementById('stat-sites').textContent = state.sites.length;
   document.getElementById('stat-plan').textContent = (state.user.plan || 'free').toUpperCase();
   document.getElementById('stat-slots').textContent = Math.max(0, state.limits.max - state.limits.used);
+  const maintEl = document.getElementById('stat-maint');
+  if (maintEl) {
+    const count = state.sites.filter((s) => s.maintenance).length;
+    maintEl.textContent = count;
+  }
 }
 
 function renderSites() {
@@ -134,17 +137,24 @@ function renderSites() {
     const lastDeploy = s.last_deploy_at
       ? new Date(Number(s.last_deploy_at)).toLocaleString('id-ID')
       : 'Belum ada';
+    const maintBadge = s.maintenance
+      ? '<span class="badge badge-maintenance">maintenance</span>'
+      : '';
     item.innerHTML = `
       <div class="site-info">
         <div class="site-name">
           ${esc(s.name)}
           <span class="badge ${statusClass}">${esc(s.status)}</span>
+          ${maintBadge}
         </div>
         <a class="site-url" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a>
         <div class="site-meta">${s.deploy_count} deploy · Terakhir: ${esc(lastDeploy)}</div>
       </div>
       <div class="site-actions">
         <button class="btn btn-secondary btn-sm" data-action="deploy" data-id="${s.id}">Deploy</button>
+        <button class="btn btn-secondary btn-sm" data-action="maintenance" data-id="${s.id}" data-maint="${s.maintenance ? '1' : '0'}">
+          ${s.maintenance ? 'Maint OFF' : 'Maint ON'}
+        </button>
         <button class="btn btn-secondary btn-sm" data-action="toggle" data-id="${s.id}" data-status="${s.status}">
           ${s.status === 'active' ? 'Pause' : 'Aktifkan'}
         </button>
@@ -160,6 +170,7 @@ function renderSites() {
       const action = btn.getAttribute('data-action');
       const id = parseInt(btn.getAttribute('data-id'), 10);
       if (action === 'deploy') openDeploy(id);
+      else if (action === 'maintenance') toggleMaintenance(id, btn.getAttribute('data-maint'));
       else if (action === 'toggle') toggleSite(id, btn.getAttribute('data-status'));
       else if (action === 'delete') deleteSite(id);
     });
@@ -286,6 +297,18 @@ async function onGitHubImport(e) {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Import & Deploy';
+  }
+}
+
+async function toggleMaintenance(id, currentMaint) {
+  const isOn = currentMaint === '1';
+  const newState = !isOn;
+  try {
+    await API.patch(`/api/sites/${id}`, { maintenance: newState });
+    toast(newState ? 'Maintenance mode AKTIF' : 'Maintenance mode NONAKTIF', 'success');
+    await loadSites();
+  } catch (err) {
+    toast(err.message, 'error');
   }
 }
 
