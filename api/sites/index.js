@@ -22,6 +22,7 @@ export default async function handler(req, res) {
           name: s.name,
           subdomain: s.subdomain,
           status: s.status,
+          maintenance: Number(s.maintenance) === 1,
           created_at: Number(s.created_at),
           updated_at: Number(s.updated_at),
           deploy_count: s.deploy_count,
@@ -73,6 +74,7 @@ export default async function handler(req, res) {
           name: site.name,
           subdomain: site.subdomain,
           status: site.status,
+          maintenance: false,
           url: `https://${site.subdomain}.${rootDomain}`
         }
       });
