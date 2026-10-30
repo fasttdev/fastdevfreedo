@@ -7,6 +7,18 @@ function esc(s) {
   }[c]));
 }
 
+function hideErr(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('show');
+}
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
 async function initDashboard() {
   try {
     const me = await API.get('/api/auth/me');
