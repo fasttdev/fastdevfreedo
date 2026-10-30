@@ -1,18 +1,6 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
-  "rewrites": [
-    {
-      "source": "/((?!api/).*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "^(?<sub>(?!www|api)[a-z0-9-]+)\\.fastdev\\.my\\.id$"
-        }
-      ],
-      "destination": "/api/render?sub=$sub&path=/$1"
-    }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
