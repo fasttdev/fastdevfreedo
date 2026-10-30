@@ -1,4 +1,4 @@
-import { sites, deployments } from '../lib/db.js';
+import { sql, sites, deployments } from '../lib/db.js';
 
 const RESERVED = new Set(['www', 'api']);
 
@@ -23,6 +23,11 @@ export default async function handler(req, res) {
     return res.status(500).send('Server error');
   }
   if (!site) return serveFallback(res, sub);
+
+  // Maintenance mode: serve maintenance page (kecuali kalau site-nya sendiri adalah 'maintenance')
+  if (Number(site.maintenance) === 1 && site.subdomain !== 'maintenance') {
+    return serveMaintenance(res, site);
+  }
 
   let dep;
   try {
@@ -62,6 +67,83 @@ export default async function handler(req, res) {
   }
 }
 
+/* ============================================================
+   MAINTENANCE PAGE
+   ============================================================ */
+async function serveMaintenance(res, site) {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Retry-After', '3600');
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+
+  // Coba pakai konten dari site 'maintenance' kalau ada
+  try {
+    const rows = await sql`SELECT * FROM sites WHERE subdomain = 'maintenance' LIMIT 1`;
+    const maintSite = rows[0];
+    if (maintSite) {
+      const dep = await deployments.latest(maintSite.id);
+      if (dep && dep.files_map && dep.files_map['index.html']) {
+        const response = await fetch(dep.files_map['index.html']);
+        if (response.ok) {
+          const html = await response.text();
+          res.status(503).setHeader('Content-Type', 'text/html; charset=utf-8');
+          return res.send(html);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('maintenance lookup error', e);
+  }
+
+  // Fallback: halaman maintenance bawaan
+  res.status(503).setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(buildDefaultMaintenance(site));
+}
+
+function buildDefaultMaintenance(site) {
+  const siteName = escapeHtml(site.name || '');
+  const sub = escapeHtml(site.subdomain || '');
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Under Maintenance — ${siteName}</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#000;color:#ededed;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;line-height:1.5;-webkit-font-smoothing:antialiased;text-align:center}
+.wrap{max-width:520px}
+.icon{width:64px;height:64px;margin:0 auto 24px;background:#161616;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:32px;border:1px solid #333}
+h1{font-size:clamp(24px,4vw,32px);font-weight:800;letter-spacing:-.03em;margin-bottom:12px;background:linear-gradient(180deg,#fff 0%,#666 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+p{color:#888;font-size:15px;margin-bottom:8px}
+strong{color:#ededed;font-weight:600}
+.meta{margin-top:32px;padding:14px 16px;background:#0a0a0a;border:1px solid #222;border-radius:12px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px;color:#666;display:flex;align-items:center;justify-content:center;gap:8px}
+.meta strong{padding:2px 6px;background:#222;border-radius:4px;color:#ededed}
+.dot{width:8px;height:8px;background:#fa0;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="icon">🛠️</div>
+  <h1>Sedang Dalam Perawatan</h1>
+  <p>Situs <strong>${siteName}</strong> sedang menjalani perawatan.</p>
+  <p>Silakan kembali lagi dalam beberapa saat.</p>
+  <div class="meta">
+    <span class="dot"></span>
+    <span>Status:</span>
+    <strong>maintenance</strong>
+    <span>·</span>
+    <span>${sub}.fastdev.my.id</span>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
 function guessType(path) {
   const ext = (path.match(/\.[^./]+$/) || [''])[0].toLowerCase();
   const map = {
