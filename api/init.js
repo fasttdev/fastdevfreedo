@@ -24,6 +24,7 @@ export default async function handler(req, res) {
       subdomain TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'active',
+      maintenance INTEGER NOT NULL DEFAULT 0,
       created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL
     )`;
@@ -38,6 +39,8 @@ export default async function handler(req, res) {
       files_map JSONB NOT NULL,
       created_at BIGINT NOT NULL
     )`;
+
+    await sql`ALTER TABLE sites ADD COLUMN IF NOT EXISTS maintenance INTEGER NOT NULL DEFAULT 0`;
 
     await sql`CREATE INDEX IF NOT EXISTS idx_sites_user ON sites(user_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_sites_sub ON sites(subdomain)`;
