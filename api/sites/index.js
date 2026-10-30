@@ -4,7 +4,12 @@ import { sendJson, sendError, noCache, readJsonBody } from '../../lib/http.js';
 import { uploadFile } from '../../lib/blob.js';
 import config from '../../lib/config.js';
 
-const { rootDomain, subdomainRegex, reservedSubdomains, planLimits } = config;
+const { rootDomain, subdomainRegex, reservedSubdomains, planLimits, adminEmail } = config;
+
+function isAdmin(user) {
+  if (!adminEmail) return false;
+  return (user.email || '').toLowerCase() === adminEmail;
+}
 
 export default async function handler(req, res) {
   noCache(res);
@@ -38,20 +43,24 @@ export default async function handler(req, res) {
       const { subdomain, name } = body || {};
       if (!subdomain || !name) return sendError(res, 400, 'Subdomain dan nama wajib diisi');
 
+      const user = await users.findById(uid);
+      const admin = isAdmin(user);
+
       const sub = String(subdomain).toLowerCase().trim();
       if (!subdomainRegex.test(sub) || sub.length < 3) {
         return sendError(res, 400, 'Subdomain 3-63 karakter, huruf kecil/angka/hubung');
       }
-      if (reservedSubdomains.includes(sub)) {
+      if (reservedSubdomains.includes(sub) && !admin) {
         return sendError(res, 400, 'Subdomain ini dipesan sistem');
       }
       if (await sites.findBySubdomain(sub)) return sendError(res, 409, 'Subdomain sudah dipakai');
 
-      const used = await sites.countByUser(uid);
-      const user = await users.findById(uid);
-      const max = planLimits[user.plan] || 3;
-      if (used >= max) {
-        return sendError(res, 403, `Batas paket ${user.plan} tercapai (maks ${max})`);
+      if (!admin) {
+        const used = await sites.countByUser(uid);
+        const max = planLimits[user.plan] || 3;
+        if (used >= max) {
+          return sendError(res, 403, `Batas paket ${user.plan} tercapai (maks ${max})`);
+        }
       }
 
       const site = await sites.create(uid, sub, String(name).slice(0, 60));
