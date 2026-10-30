@@ -67,21 +67,48 @@
   <div class="modal">
     <h2>Deploy</h2>
     <p class="sub" id="deploy-sub">Upload file ke situs.</p>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="upload">Upload File</div>
+      <div class="tab" data-tab="github">Import GitHub</div>
+    </div>
+
     <div class="alert alert-error" id="deploy-err"></div>
-    <form id="deploy-form">
-      <input type="hidden" id="deploy-site-id">
-      <div class="dropzone" id="dropzone">
-        <div class="icon">📁</div>
-        <p>Klik atau seret file ke sini</p>
-        <p style="font-size:11px;color:var(--text-faint);margin-top:6px">Wajib ada <code>index.html</code> · Maks ~3MB total</p>
-      </div>
-      <input type="file" id="file-input" multiple hidden>
-      <div class="file-list" id="file-list"></div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" id="deploy-cancel">Batal</button>
-        <button type="submit" class="btn btn-primary" id="deploy-submit">Deploy</button>
-      </div>
-    </form>
+    <input type="hidden" id="deploy-site-id">
+
+    <div class="tab-panel" data-panel="upload">
+      <form id="deploy-form">
+        <div class="dropzone" id="dropzone">
+          <div class="icon">📁</div>
+          <p>Klik atau seret file ke sini</p>
+          <p style="font-size:11px;color:var(--text-faint);margin-top:6px">Wajib ada <code>index.html</code> · Maks ~3MB total</p>
+        </div>
+        <input type="file" id="file-input" multiple hidden>
+        <div class="file-list" id="file-list"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="deploy-cancel">Batal</button>
+          <button type="submit" class="btn btn-primary" id="deploy-submit">Deploy</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="github">
+      <form id="github-form">
+        <div class="field">
+          <label for="github-repo">URL Repository</label>
+          <input class="input" type="text" id="github-repo" placeholder="https://github.com/user/repo" required>
+          <span class="hint">Repo publik. Format: <code>user/repo</code> atau URL lengkap</span>
+        </div>
+        <div class="field">
+          <label for="github-branch">Branch (opsional)</label>
+          <input class="input" type="text" id="github-branch" placeholder="main">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="github-cancel">Batal</button>
+          <button type="submit" class="btn btn-primary" id="github-submit">Import &amp; Deploy</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
