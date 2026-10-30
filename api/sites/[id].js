@@ -13,6 +13,19 @@ async function ownSite(uid, id) {
   return site;
 }
 
+function toSiteDto(site) {
+  return {
+    id: site.id,
+    name: site.name,
+    subdomain: site.subdomain,
+    status: site.status,
+    maintenance: Number(site.maintenance) === 1,
+    created_at: Number(site.created_at),
+    updated_at: Number(site.updated_at),
+    url: `https://${site.subdomain}.${rootDomain}`
+  };
+}
+
 export default async function handler(req, res) {
   noCache(res);
   const uid = await getAuthedUser(req);
@@ -28,15 +41,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const list = await deployments.listBySite(site.id);
       return sendJson(res, 200, {
-        site: {
-          id: site.id,
-          name: site.name,
-          subdomain: site.subdomain,
-          status: site.status,
-          created_at: Number(site.created_at),
-          updated_at: Number(site.updated_at),
-          url: `https://${site.subdomain}.${rootDomain}`
-        },
+        site: toSiteDto(site),
         deployments: list.map((d) => ({
           id: d.id,
           version: d.version,
@@ -53,16 +58,9 @@ export default async function handler(req, res) {
       const update = {};
       if (body.name && typeof body.name === 'string') update.name = body.name.trim().slice(0, 60);
       if (body.status === 'active' || body.status === 'paused') update.status = body.status;
+      if (typeof body.maintenance === 'boolean') update.maintenance = body.maintenance;
       const updated = await sites.update(site.id, update);
-      return sendJson(res, 200, {
-        site: {
-          id: updated.id,
-          name: updated.name,
-          subdomain: updated.subdomain,
-          status: updated.status,
-          url: `https://${updated.subdomain}.${rootDomain}`
-        }
-      });
+      return sendJson(res, 200, { site: toSiteDto(updated) });
     }
 
     if (req.method === 'DELETE') {
