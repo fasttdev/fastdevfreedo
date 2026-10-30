@@ -56,6 +56,22 @@ function bindEvents() {
   });
   document.getElementById('deploy-form').addEventListener('submit', onDeploy);
 
+  // Tab switching
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-tab');
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab));
+      document.querySelectorAll('.tab-panel').forEach((p) => {
+        p.classList.toggle('hidden', p.getAttribute('data-panel') !== target);
+      });
+      hideErr('deploy-err');
+    });
+  });
+
+  // GitHub import
+  document.getElementById('github-form').addEventListener('submit', onGitHubImport);
+  document.getElementById('github-cancel').addEventListener('click', () => closeModal('modal-deploy'));
+
   const dz = document.getElementById('dropzone');
   const fi = document.getElementById('file-input');
   dz.addEventListener('click', () => fi.click());
@@ -177,9 +193,13 @@ function openDeploy(siteId) {
   document.getElementById('deploy-site-id').value = siteId;
   document.getElementById('deploy-sub').textContent = `Deploy ke ${site.url}`;
   document.getElementById('file-input').value = '';
+  document.getElementById('github-repo').value = '';
+  document.getElementById('github-branch').value = '';
   selectedFiles = [];
   renderFileList();
   hideErr('deploy-err');
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.getAttribute('data-tab') === 'upload'));
+  document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('hidden', p.getAttribute('data-panel') !== 'upload'));
   openModal('modal-deploy');
 }
 
@@ -237,6 +257,35 @@ async function onDeploy(e) {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Deploy';
+  }
+}
+
+async function onGitHubImport(e) {
+  e.preventDefault();
+  hideErr('deploy-err');
+  const siteId = document.getElementById('deploy-site-id').value;
+  const repo = document.getElementById('github-repo').value.trim();
+  const branch = document.getElementById('github-branch').value.trim();
+
+  if (!repo) {
+    showErr('deploy-err', 'URL repo wajib diisi');
+    return;
+  }
+
+  const btn = document.getElementById('github-submit');
+  btn.disabled = true;
+  btn.textContent = 'Mengambil…';
+
+  try {
+    const res = await API.post(`/api/sites/${siteId}/import-github`, { repo, branch });
+    closeModal('modal-deploy');
+    toast(`Deploy v${res.deployment.version} dari GitHub sukses`, 'success');
+    await loadSites();
+  } catch (err) {
+    showErr('deploy-err', err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Import & Deploy';
   }
 }
 
