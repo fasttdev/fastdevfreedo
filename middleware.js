@@ -1,5 +1,5 @@
 export const config = {
-  matcher: '/((?!api/).*)',
+  matcher: '/(?!api/).*',
 };
 
 const ROOT_DOMAIN = 'fastdev.my.id';
