@@ -97,6 +97,13 @@ input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
 .modal .sub{color:var(--text-dim);font-size:13px;margin-bottom:20px}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:20px;border-top:1px solid var(--border)}
 
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab{padding:10px 14px;font-size:13px;font-weight:500;color:var(--text-dim);border-bottom:2px solid transparent;margin-bottom:-1px;transition:.15s;cursor:pointer;user-select:none}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--text);border-bottom-color:var(--accent)}
+
+.tab-panel{padding:0}
+
 .dropzone{border:1px dashed var(--border-strong);border-radius:var(--radius-lg);padding:32px 20px;text-align:center;cursor:pointer;transition:.15s;background:var(--surface-2)}
 .dropzone:hover,.dropzone.drag{border-color:var(--text-dim);background:var(--surface-3)}
 .dropzone p{font-size:13px;color:var(--text-dim);margin-top:8px}
@@ -108,6 +115,8 @@ input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
 .toast.error{border-color:var(--danger);color:#ffaaaa}
 .toast.success{border-color:var(--success);color:var(--success)}
 @keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+.hidden{display:none !important}
 
 @media (max-width:640px){
   .site-item{flex-direction:column;align-items:flex-start}
