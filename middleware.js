@@ -8,25 +8,22 @@ export default function middleware(req) {
   const host = (req.headers.get('host') || '').toLowerCase().split(':')[0];
   const url = new URL(req.url);
 
-  // Lewati jika bukan subdomain dari ROOT_DOMAIN
   if (
     host === ROOT_DOMAIN ||
     host === `www.${ROOT_DOMAIN}` ||
     host.endsWith('.vercel.app') ||
     !host.endsWith('.' + ROOT_DOMAIN)
   ) {
-    return; // Lanjutkan ke request normal
+    return;
   }
 
   const sub = host.slice(0, -(ROOT_DOMAIN.length + 1));
   if (!sub || sub === 'www' || sub === 'api') return;
 
-  // Bangun URL tujuan untuk fungsi /api/render
   const rewriteUrl = new URL('/api/render', url.origin);
   rewriteUrl.searchParams.set('sub', sub);
   rewriteUrl.searchParams.set('path', url.pathname);
 
-  // Lakukan rewrite dengan Response native
   const headers = new Headers();
   headers.set('x-middleware-rewrite', rewriteUrl.toString());
   return new Response(null, { headers });
