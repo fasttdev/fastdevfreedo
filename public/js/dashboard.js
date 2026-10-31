@@ -1,5 +1,9 @@
 let state = { user: null, sites: [], limits: { max: 3, used: 0 } };
 let selectedFiles = [];
+let ghConnected = false;
+let ghUsername = null;
+let ghRepos = [];
+let ghSelectedRepo = null;
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({
@@ -30,6 +34,29 @@ async function initDashboard() {
   }
   bindEvents();
   await loadSites();
+  handleGithubRedirect();
+}
+
+function handleGithubRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const gh = params.get('github');
+  if (!gh) return;
+  if (gh === 'connected') toast('GitHub berhasil terhubung', 'success');
+  else if (gh === 'error') toast('Gagal menghubungkan GitHub', 'error');
+  params.delete('github');
+  const clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+  window.history.replaceState({}, '', clean);
+}
+
+async function checkGitHubStatus() {
+  try {
+    const data = await API.get('/api/github/status');
+    ghConnected = !!data.connected;
+    ghUsername = data.github_user || null;
+  } catch (_) {
+    ghConnected = false;
+    ghUsername = null;
+  }
 }
 
 function bindEvents() {
@@ -64,11 +91,27 @@ function bindEvents() {
         p.classList.toggle('hidden', p.getAttribute('data-panel') !== target);
       });
       hideErr('deploy-err');
+      if (target === 'repos') refreshReposPanel();
     });
   });
 
   document.getElementById('github-form').addEventListener('submit', onGitHubImport);
   document.getElementById('github-cancel').addEventListener('click', () => closeModal('modal-deploy'));
+
+  const reposCancel = document.getElementById('repos-cancel');
+  if (reposCancel) reposCancel.addEventListener('click', () => closeModal('modal-deploy'));
+  const reposCancelDisc = document.getElementById('repos-cancel-disconnected');
+  if (reposCancelDisc) reposCancelDisc.addEventListener('click', () => closeModal('modal-deploy'));
+  const reposDeploy = document.getElementById('repos-deploy');
+  if (reposDeploy) reposDeploy.addEventListener('click', onDeployFromRepos);
+  const reposSearch = document.getElementById('repos-search');
+  if (reposSearch) reposSearch.addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase().trim();
+    const filtered = q ? ghRepos.filter((r) => r.full_name.toLowerCase().includes(q)) : ghRepos;
+    renderReposList(filtered);
+  });
+  const ghDisconnect = document.getElementById('gh-disconnect');
+  if (ghDisconnect) ghDisconnect.addEventListener('click', onDisconnectGithub);
 
   const dz = document.getElementById('dropzone');
   const fi = document.getElementById('file-input');
@@ -198,35 +241,37 @@ function openDnsModal(siteId) {
   const site = state.sites.find((s) => s.id === siteId);
   if (!site) return;
 
-  const current = site.dns_target || '';
+  const currentTarget = site.dns_target || '';
+
   const target = prompt(
-    'Masukkan CNAME target dari Vercel.\n\n' +
-    'Di project Vercel kamu:\n' +
-    '1. Settings -> Domains -> Add Domain\n' +
-    '2. Masukkan: ' + site.subdomain + '.fastdev.my.id\n' +
-    '3. Copy nilai CNAME (contoh: abc123.vercel-dns-017.com)\n\n' +
-    'Kosongkan untuk hapus record DNS.',
-    current
+    'CNAME Target dari Vercel.\n' +
+    'Contoh: abc123.vercel-dns-017.com\n' +
+    'Kosongkan untuk hapus semua record.',
+    currentTarget
   );
-
   if (target === null) return;
+  const trimmedTarget = target.trim();
 
-  const trimmed = target.trim();
-
-  if (!trimmed) {
-    if (!confirm('Hapus record CNAME untuk ' + site.subdomain + '.fastdev.my.id?')) return;
+  if (!trimmedTarget) {
+    if (!confirm('Hapus semua record DNS untuk ' + site.subdomain + '.fastdev.my.id?')) return;
     API.del(`/api/sites/${siteId}/dns`)
-      .then(() => {
-        toast('Record DNS dihapus', 'success');
-        loadSites();
-      })
+      .then(() => { toast('Record DNS dihapus', 'success'); loadSites(); })
       .catch((err) => toast(err.message, 'error'));
     return;
   }
 
-  API.post(`/api/sites/${siteId}/dns`, { target: trimmed })
+  const txtInput = prompt(
+    'TXT Value dari Vercel (untuk verifikasi ownership).\n' +
+    'Kalau Vercel gak minta TXT, kosongkan aja.\n' +
+    'Contoh: vc-domain-verify=' + site.subdomain + '.fastdev.my.id,5700fc845b49e61ac2bf',
+    ''
+  );
+  if (txtInput === null) return;
+  const trimmedTxt = txtInput.trim();
+
+  API.post(`/api/sites/${siteId}/dns`, { target: trimmedTarget, txt_value: trimmedTxt || null })
     .then(() => {
-      toast('Record CNAME berhasil dibuat. Balik ke Vercel dan klik Verify.', 'success');
+      toast(trimmedTxt ? 'CNAME + TXT berhasil dibuat. Klik Verify di Vercel.' : 'CNAME berhasil dibuat.', 'success');
       loadSites();
     })
     .catch((err) => toast(err.message, 'error'));
@@ -262,6 +307,7 @@ function openDeploy(siteId) {
   document.getElementById('github-repo').value = '';
   document.getElementById('github-branch').value = '';
   selectedFiles = [];
+  ghSelectedRepo = null;
   renderFileList();
   hideErr('deploy-err');
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.getAttribute('data-tab') === 'upload'));
@@ -352,6 +398,108 @@ async function onGitHubImport(e) {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Import & Deploy';
+  }
+}
+
+async function refreshReposPanel() {
+  await checkGitHubStatus();
+  const notConn = document.getElementById('gh-not-connected');
+  const conn = document.getElementById('gh-connected');
+  if (!notConn || !conn) return;
+  if (!ghConnected) {
+    notConn.classList.remove('hidden');
+    conn.classList.add('hidden');
+    return;
+  }
+  notConn.classList.add('hidden');
+  conn.classList.remove('hidden');
+  document.getElementById('gh-username').textContent = '@' + ghUsername;
+  await loadReposList();
+}
+
+async function loadReposList() {
+  const listEl = document.getElementById('repos-list');
+  listEl.innerHTML = '<div style="padding:24px;text-align:center"><p style="font-size:12px;color:var(--text-faint)">Memuat...</p></div>';
+  document.getElementById('repos-deploy').disabled = true;
+  ghSelectedRepo = null;
+
+  try {
+    const data = await API.get('/api/github/repos');
+    ghRepos = data.repos || [];
+    document.getElementById('repos-search').value = '';
+    renderReposList(ghRepos);
+  } catch (err) {
+    listEl.innerHTML = `<div style="padding:24px;text-align:center"><p style="font-size:12px;color:#ff8888">${esc(err.message)}</p></div>`;
+  }
+}
+
+function renderReposList(repos) {
+  const listEl = document.getElementById('repos-list');
+  if (!repos.length) {
+    listEl.innerHTML = '<div style="padding:24px;text-align:center"><p style="font-size:12px;color:var(--text-faint)">Tidak ada repo</p></div>';
+    return;
+  }
+  listEl.innerHTML = repos.map((r) => {
+    const isSelected = ghSelectedRepo && ghSelectedRepo.full_name === r.full_name;
+    return `
+      <div class="repo-item ${isSelected ? 'selected' : ''}" data-repo="${esc(r.full_name)}">
+        <div class="repo-name">${esc(r.full_name)}</div>
+        <div class="repo-meta">
+          ${r.private ? '<span class="repo-private">Private</span>' : '<span>Public</span>'}
+          <span>·</span>
+          <span>${esc(r.default_branch)}</span>
+          ${r.language ? `<span>·</span><span>${esc(r.language)}</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.repo-item').forEach((el) => {
+    el.addEventListener('click', () => {
+      const name = el.getAttribute('data-repo');
+      ghSelectedRepo = repos.find((r) => r.full_name === name) || null;
+      listEl.querySelectorAll('.repo-item').forEach((x) => x.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('repos-deploy').disabled = !ghSelectedRepo;
+    });
+  });
+}
+
+async function onDeployFromRepos() {
+  if (!ghSelectedRepo) return;
+  hideErr('deploy-err');
+  const siteId = document.getElementById('deploy-site-id').value;
+  const btn = document.getElementById('repos-deploy');
+  btn.disabled = true;
+  btn.textContent = 'Deploying…';
+
+  try {
+    const res = await API.post(`/api/sites/${siteId}/import-github-oauth`, {
+      repo: ghSelectedRepo.full_name,
+      branch: ghSelectedRepo.default_branch
+    });
+    closeModal('modal-deploy');
+    toast(`Deploy v${res.deployment.version} dari ${ghSelectedRepo.full_name} sukses`, 'success');
+    await loadSites();
+  } catch (err) {
+    showErr('deploy-err', err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Deploy';
+  }
+}
+
+async function onDisconnectGithub() {
+  if (!confirm('Disconnect GitHub? Kamu harus authorize lagi untuk deploy dari repo.')) return;
+  try {
+    await API.post('/api/github/disconnect');
+    toast('GitHub disconnected', 'success');
+    ghConnected = false;
+    ghUsername = null;
+    ghRepos = [];
+    ghSelectedRepo = null;
+    refreshReposPanel();
+  } catch (err) {
+    toast(err.message, 'error');
   }
 }
 
