@@ -20,10 +20,29 @@ function toSiteDto(site) {
     subdomain: site.subdomain,
     status: site.status,
     maintenance: Number(site.maintenance) === 1,
+    custom_origin: site.custom_origin || null,
+    dns_target: site.dns_target || null,
+    dns_record_id: site.dns_record_id || null,
     created_at: Number(site.created_at),
     updated_at: Number(site.updated_at),
     url: `https://${site.subdomain}.${rootDomain}`
   };
+}
+
+function validateOrigin(input) {
+  if (input === null || input === '') return { ok: true, value: null };
+  const s = String(input).trim();
+  if (!s) return { ok: true, value: null };
+  let parsed;
+  try {
+    parsed = new URL(s);
+  } catch {
+    return { ok: false, error: 'URL tidak valid. Contoh: https://project.vercel.app' };
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    return { ok: false, error: 'URL harus http:// atau https://' };
+  }
+  return { ok: true, value: parsed.origin };
 }
 
 export default async function handler(req, res) {
@@ -59,6 +78,13 @@ export default async function handler(req, res) {
       if (body.name && typeof body.name === 'string') update.name = body.name.trim().slice(0, 60);
       if (body.status === 'active' || body.status === 'paused') update.status = body.status;
       if (typeof body.maintenance === 'boolean') update.maintenance = body.maintenance;
+
+      if (Object.prototype.hasOwnProperty.call(body, 'custom_origin')) {
+        const v = validateOrigin(body.custom_origin);
+        if (!v.ok) return sendError(res, 400, v.error);
+        update.custom_origin = v.value;
+      }
+
       const updated = await sites.update(site.id, update);
       return sendJson(res, 200, { site: toSiteDto(updated) });
     }
