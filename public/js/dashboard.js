@@ -111,10 +111,7 @@ function renderStats() {
   document.getElementById('stat-plan').textContent = (state.user.plan || 'free').toUpperCase();
   document.getElementById('stat-slots').textContent = Math.max(0, state.limits.max - state.limits.used);
   const maintEl = document.getElementById('stat-maint');
-  if (maintEl) {
-    const count = state.sites.filter((s) => s.maintenance).length;
-    maintEl.textContent = count;
-  }
+  if (maintEl) maintEl.textContent = state.sites.filter((s) => s.maintenance).length;
 }
 
 function renderSites() {
@@ -137,27 +134,27 @@ function renderSites() {
     const lastDeploy = s.last_deploy_at
       ? new Date(Number(s.last_deploy_at)).toLocaleString('id-ID')
       : 'Belum ada';
-    const maintBadge = s.maintenance
-      ? '<span class="badge badge-maintenance">maintenance</span>'
-      : '';
+    const maintBadge = s.maintenance ? '<span class="badge badge-maintenance">maintenance</span>' : '';
+    const originBadge = s.custom_origin ? '<span class="badge badge-active">origin</span>' : '';
+    const dnsBadge = s.dns_target ? '<span class="badge badge-active">dns</span>' : '';
     item.innerHTML = `
       <div class="site-info">
         <div class="site-name">
           ${esc(s.name)}
           <span class="badge ${statusClass}">${esc(s.status)}</span>
           ${maintBadge}
+          ${originBadge}
+          ${dnsBadge}
         </div>
         <a class="site-url" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a>
         <div class="site-meta">${s.deploy_count} deploy · Terakhir: ${esc(lastDeploy)}</div>
       </div>
       <div class="site-actions">
         <button class="btn btn-secondary btn-sm" data-action="deploy" data-id="${s.id}">Deploy</button>
-        <button class="btn btn-secondary btn-sm" data-action="maintenance" data-id="${s.id}" data-maint="${s.maintenance ? '1' : '0'}">
-          ${s.maintenance ? 'Maint OFF' : 'Maint ON'}
-        </button>
-        <button class="btn btn-secondary btn-sm" data-action="toggle" data-id="${s.id}" data-status="${s.status}">
-          ${s.status === 'active' ? 'Pause' : 'Aktifkan'}
-        </button>
+        <button class="btn btn-secondary btn-sm" data-action="maintenance" data-id="${s.id}" data-maint="${s.maintenance ? '1' : '0'}">${s.maintenance ? 'Maint OFF' : 'Maint ON'}</button>
+        <button class="btn btn-secondary btn-sm" data-action="origin" data-id="${s.id}">Origin</button>
+        <button class="btn btn-secondary btn-sm" data-action="dns" data-id="${s.id}">DNS</button>
+        <button class="btn btn-secondary btn-sm" data-action="toggle" data-id="${s.id}" data-status="${s.status}">${s.status === 'active' ? 'Pause' : 'Aktifkan'}</button>
         <button class="btn btn-danger btn-sm" data-action="delete" data-id="${s.id}">Hapus</button>
       </div>`;
     list.appendChild(item);
@@ -171,10 +168,68 @@ function renderSites() {
       const id = parseInt(btn.getAttribute('data-id'), 10);
       if (action === 'deploy') openDeploy(id);
       else if (action === 'maintenance') toggleMaintenance(id, btn.getAttribute('data-maint'));
+      else if (action === 'origin') openOriginModal(id);
+      else if (action === 'dns') openDnsModal(id);
       else if (action === 'toggle') toggleSite(id, btn.getAttribute('data-status'));
       else if (action === 'delete') deleteSite(id);
     });
   });
+}
+
+function openOriginModal(siteId) {
+  const site = state.sites.find((s) => s.id === siteId);
+  if (!site) return;
+  const current = site.custom_origin || '';
+  const url = prompt(
+    'Masukkan URL project Vercel kamu (contoh: https://myproject.vercel.app).\nKosongkan untuk hapus origin.',
+    current
+  );
+  if (url === null) return;
+  const trimmed = url.trim();
+  API.patch(`/api/sites/${siteId}`, { custom_origin: trimmed || null })
+    .then(() => {
+      toast(trimmed ? 'Origin terhubung' : 'Origin dihapus', 'success');
+      loadSites();
+    })
+    .catch((err) => toast(err.message, 'error'));
+}
+
+function openDnsModal(siteId) {
+  const site = state.sites.find((s) => s.id === siteId);
+  if (!site) return;
+
+  const current = site.dns_target || '';
+  const target = prompt(
+    'Masukkan CNAME target dari Vercel.\n\n' +
+    'Di project Vercel kamu:\n' +
+    '1. Settings -> Domains -> Add Domain\n' +
+    '2. Masukkan: ' + site.subdomain + '.fastdev.my.id\n' +
+    '3. Copy nilai CNAME (contoh: abc123.vercel-dns-017.com)\n\n' +
+    'Kosongkan untuk hapus record DNS.',
+    current
+  );
+
+  if (target === null) return;
+
+  const trimmed = target.trim();
+
+  if (!trimmed) {
+    if (!confirm('Hapus record CNAME untuk ' + site.subdomain + '.fastdev.my.id?')) return;
+    API.del(`/api/sites/${siteId}/dns`)
+      .then(() => {
+        toast('Record DNS dihapus', 'success');
+        loadSites();
+      })
+      .catch((err) => toast(err.message, 'error'));
+    return;
+  }
+
+  API.post(`/api/sites/${siteId}/dns`, { target: trimmed })
+    .then(() => {
+      toast('Record CNAME berhasil dibuat. Balik ke Vercel dan klik Verify.', 'success');
+      loadSites();
+    })
+    .catch((err) => toast(err.message, 'error'));
 }
 
 async function onCreateSite(e) {
@@ -302,10 +357,9 @@ async function onGitHubImport(e) {
 
 async function toggleMaintenance(id, currentMaint) {
   const isOn = currentMaint === '1';
-  const newState = !isOn;
   try {
-    await API.patch(`/api/sites/${id}`, { maintenance: newState });
-    toast(newState ? 'Maintenance mode AKTIF' : 'Maintenance mode NONAKTIF', 'success');
+    await API.patch(`/api/sites/${id}`, { maintenance: !isOn });
+    toast(!isOn ? 'Maintenance mode AKTIF' : 'Maintenance mode NONAKTIF', 'success');
     await loadSites();
   } catch (err) {
     toast(err.message, 'error');
