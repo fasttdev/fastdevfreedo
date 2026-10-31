@@ -28,6 +28,7 @@ export default async function handler(req, res) {
       custom_origin TEXT,
       dns_target TEXT,
       dns_record_id TEXT,
+      dns_txt_record_id TEXT,
       created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL
     )`;
@@ -47,6 +48,7 @@ export default async function handler(req, res) {
     await sql`ALTER TABLE sites ADD COLUMN IF NOT EXISTS custom_origin TEXT`;
     await sql`ALTER TABLE sites ADD COLUMN IF NOT EXISTS dns_target TEXT`;
     await sql`ALTER TABLE sites ADD COLUMN IF NOT EXISTS dns_record_id TEXT`;
+    await sql`ALTER TABLE sites ADD COLUMN IF NOT EXISTS dns_txt_record_id TEXT`;
 
     await sql`CREATE INDEX IF NOT EXISTS idx_sites_user ON sites(user_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_sites_sub ON sites(subdomain)`;
